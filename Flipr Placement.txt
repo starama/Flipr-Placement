@@ -1,0 +1,826 @@
+Authentication
+Step 1: Install Dependencies
+npm install express mongoose bcryptjs jsonwebtoken validator dotenv
+Step 2: Create the User Model
+In models/User.js, create a schema for user information:
+const mongoose = require('mongoose');
+const userSchema = new mongoose.Schema({
+ name: { type: String, required: true },
+ email: { type: String, required: true, unique: true },
+ password: { type: String, required: true },
+ address: { type: String },
+});
+module.exports = mongoose.model('User', userSchema);
+Step 3: Create Authentication Controller
+In controllers/authController.js, implement the logic for signup and signin.
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const validator = require('validator');
+const User = require('../models/User');
+// Sign Up Controller
+const signup = async (req, res) => {
+ try {
+ const { name, email, password, address } = req.body;
+ // Validate input
+ if (!name || !email || !password) {
+ return res.status(400).json({ message: 'Please fill all required fields.' });
+ }
+ if (!validator.isEmail(email)) {
+ return res.status(400).json({ message: 'Invalid email format.' });
+ }
+ if (!validator.isStrongPassword(password)) {
+ return res.status(400).json({ message: 'Password must be stronger.' });
+ }
+ // Check if email is unique
+ const existingUser = await User.findOne({ email });
+ if (existingUser) {
+ return res.status(409).json({ message: 'Email is already registered.' });
+ }
+ // Hash password
+ const hashedPassword = await bcrypt.hash(password, 10);
+ // Create new user
+ const newUser = new User({
+ name,
+ email,
+ password: hashedPassword,
+ address,
+ });
+ await newUser.save();
+ res.status(201).json({ message: 'Signup successful', userId: newUser._id });
+ } catch (error) {
+ console.error(error);
+ res.status(500).json({ message: 'Server error' });
+ }
+};
+// Sign In Controller
+const signin = async (req, res) => {
+ try {
+ const { email, password } = req.body;
+ // Validate input
+ if (!email || !password) {
+ return res.status(400).json({ message: 'Please fill all required fields.' });
+ }
+ if (!validator.isEmail(email)) {
+ return res.status(400).json({ message: 'Invalid email format.' });
+ }
+ // Check if user exists
+ const user = await User.findOne({ email });
+ if (!user) {
+ return res.status(401).json({ message: 'Invalid credentials.' });
+ }
+ // Validate password
+ const isMatch = await bcrypt.compare(password, user.password);
+ if (!isMatch) {
+ return res.status(401).json({ message: 'Invalid credentials.' });
+ }
+ // Generate JWT
+ const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+ res.status(200).json({ message: 'Login successful', token });
+ } catch (error) {
+ console.error(error);
+ res.status(500).json({ message: 'Server error' });
+ }
+};
+module.exports = { signup, signin };
+Step 4: Define Authentication Routes
+In routes/auth.js, set up routes for signup and signin:
+const express = require('express');
+const router = express.Router();
+const { signup, signin } = require('../controllers/authController');
+router.post('/signup', signup);
+router.post('/signin', signin);
+module.exports = router;
+Step 5: Integrate Authentication Routes in app.js
+Set up the Express application and include the authentication routes. In app.js:
+const express = require('express');
+const connectDB = require('./config/db'); // Assume you have a db.js for MongoDB connection
+const authRoutes = require('./routes/auth');
+require('dotenv').config();
+const app = express();
+// Connect to MongoDB
+connectDB();
+// Middleware
+app.use(express.json());
+// Routes
+app.use('/api/auth', authRoutes);
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+Step 6: Environment Variables
+In .env, define the JWT secret and MongoDB URI:
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret
+PORT=5000
+Here’s how to implement the Sign Up and Sign In endpoints with validation, password hashing, and 
+token generation in Node.js using Express, Mongoose, bcryptjs, and jsonwebtoken.
+Step 1: Install Dependencies
+bash
+npm install express mongoose bcryptjs jsonwebtoken validator dotenv
+Step 2: Create the User Model
+In models/User.js, create a schema for user information:
+const mongoose = require('mongoose');
+const userSchema = new mongoose.Schema({
+ name: { type: String, required: true },
+ email: { type: String, required: true, unique: true },
+ password: { type: String, required: true },
+ address: { type: String },
+});
+module.exports = mongoose.model('User', userSchema);
+Step 3: Create Authentication Controller
+In controllers/authController.js, implement the logic for signup and signin.
+javascript
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const validator = require('validator');
+const User = require('../models/User');
+// Sign Up Controller
+const signup = async (req, res) => {
+ try {
+ const { name, email, password, address } = req.body;
+ // Validate input
+ if (!name || !email || !password) {
+ return res.status(400).json({ message: 'Please fill all required fields.' });
+ }
+ if (!validator.isEmail(email)) {
+ return res.status(400).json({ message: 'Invalid email format.' });
+ }
+ if (!validator.isStrongPassword(password)) {
+ return res.status(400).json({ message: 'Password must be stronger.' });
+ }
+ // Check if email is unique
+ const existingUser = await User.findOne({ email });
+ if (existingUser) {
+ return res.status(409).json({ message: 'Email is already registered.' });
+ }
+ // Hash password
+ const hashedPassword = await bcrypt.hash(password, 10);
+ // Create new user
+ const newUser = new User({
+ name,
+ email,
+ password: hashedPassword,
+ address,
+ });
+ await newUser.save();
+ res.status(201).json({ message: 'Signup successful', userId: newUser._id });
+ } catch (error) {
+ console.error(error);
+ res.status(500).json({ message: 'Server error' });
+ }
+};
+// Sign In Controller
+const signin = async (req, res) => {
+ try {
+ const { email, password } = req.body;
+ // Validate input
+ if (!email || !password) {
+ return res.status(400).json({ message: 'Please fill all required fields.' });
+ }
+ if (!validator.isEmail(email)) {
+ return res.status(400).json({ message: 'Invalid email format.' });
+ }
+ // Check if user exists
+ const user = await User.findOne({ email });
+ if (!user) {
+ return res.status(401).json({ message: 'Invalid credentials.' });
+ }
+ // Validate password
+ const isMatch = await bcrypt.compare(password, user.password);
+ if (!isMatch) {
+ return res.status(401).json({ message: 'Invalid credentials.' });
+ }
+ // Generate JWT
+ const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+ res.status(200).json({ message: 'Login successful', token });
+ } catch (error) {
+ console.error(error);
+ res.status(500).json({ message: 'Server error' });
+ }
+};
+module.exports = { signup, signin };
+Step 4: Define Authentication Routes
+In routes/auth.js, set up routes for signup and signin:
+const express = require('express');
+const router = express.Router();
+const { signup, signin } = require('../controllers/authController');
+router.post('/signup', signup);
+router.post('/signin', signin);
+module.exports = router;
+Step 5: Integrate Authentication Routes in app.js
+Set up the Express application and include the authentication routes. In app.js:
+const express = require('express');
+const connectDB = require('./config/db'); // Assume you have a db.js for MongoDB connection
+const authRoutes = require('./routes/auth');
+require('dotenv').config();
+const app = express();
+// Connect to MongoDB
+connectDB();
+// Middleware
+app.use(express.json());
+// Routes
+app.use('/api/auth', authRoutes);
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+Step 6: Environment Variables
+In .env, define the JWT secret and MongoDB URI:
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret
+PORT=5000
+Step 7: Testing the API
+1. Sign Up
+o Endpoint: POST http://localhost:5000/api/auth/signup
+Request Body:
+{
+ "name": "John Doe",
+ "email": "johndoe@example.com",
+ "password": "SecurePassword123!",
+ "address": "123 Coffee St."
+}
+Expected Response:
+{
+ "message": "Signup successful",
+ "userId": "user_id_here"
+}
+2. Sign In
+• Endpoint: POST http://localhost:5000/api/auth/signin
+Request Body
+{
+ "email": "johndoe@example.com",
+ "password": "SecurePassword123!"
+}
+Expected Response:
+{
+ "message": "Login successful",
+ "token": "jwt_token_here"
+}
+Product Management
+Step 1: Create the Product Model
+In models/Product.js:
+const mongoose = require('mongoose');
+const productSchema = new mongoose.Schema({
+ name: { type: String, required: true },
+ description: { type: String, required: true },
+ price: { type: Number, required: true, min: 0 },
+ category: { type: String, required: true },
+});
+module.exports = mongoose.model('Product', productSchema);
+Step 2: Create the Product Controller
+In controllers/productController.js, implement the functions for handling product operations.
+const Product = require('../models/Product');
+// Add Product
+const addProduct = async (req, res) => {
+ try {
+ const { name, description, price, category } = req.body;
+ // Validate input
+ if (!name || !description || !price || !category) {
+ return res.status(400).json({ message: 'Please provide all required fields.' });
+ }
+ if (price <= 0) {
+ return res.status(400).json({ message: 'Price must be a positive number.' });
+ }
+ // Create a new product
+ const newProduct = new Product({ name, description, price, category });
+ await newProduct.save();
+ res.status(201).json({ message: 'Product added successfully', productId: newProduct._id });
+ } catch (error) {
+ console.error(error);
+ res.status(500).json({ message: 'Server error' });
+ }
+};
+// Update Product
+const updateProduct = async (req, res) => {
+ try {
+ const { productId } = req.params;
+ const updates = req.body;
+ // Find the product by ID
+ const product = await Product.findById(productId);
+ if (!product) {
+ return res.status(404).json({ message: 'Product not found.' });
+ }
+ // Update fields that are provided in the request
+ Object.keys(updates).forEach((key) => {
+ if (updates[key] !== undefined) {
+ product[key] = updates[key];
+ }
+ });
+ await product.save();
+ res.status(200).json({ message: 'Product updated successfully' });
+ } catch (error) {
+ console.error(error);
+ res.status(500).json({ message: 'Server error' });
+ }
+};
+// Delete Product
+const deleteProduct = async (req, res) => {
+ try {
+ const { productId } = req.params;
+ // Check if product exists
+ const product = await Product.findByIdAndDelete(productId);
+ if (!product) {
+ return res.status(404).json({ message: 'Product not found.' });
+ }
+ res.status(200).json({ message: 'Product deleted successfully' });
+ } catch (error) {
+ console.error(error);
+ res.status(500).json({ message: 'Server error' });
+ }
+};
+// Get All Products
+const getAllProducts = async (req, res) => {
+ try {
+ const products = await Product.find();
+ if (products.length === 0) {
+ return res.status(200).json({ message: 'No products found.' });
+ }
+ res.status(200).json(products);
+ } catch (error) {
+ console.error(error);
+ res.status(500).json({ message: 'Server error' });
+ }
+};
+module.exports = { addProduct, updateProduct, deleteProduct, getAllProducts };
+Step 3: Define Product Routes
+In routes/product.js, define the routes for each endpoint.
+const express = require('express');
+const router = express.Router();
+const {
+ addProduct,
+ updateProduct,
+ deleteProduct,
+ getAllProducts,
+} = require('../controllers/productController');
+router.post('/addproduct', addProduct); // Add product
+router.put('/updateproduct/:productId', updateProduct); // Update product
+router.delete('/deleteproduct/:productId', deleteProduct); // Delete product
+router.get('/products', getAllProducts); // Get all products
+module.exports = router;
+Step 4: Integrate Product Routes in app.js
+In your main file app.js, add the product routes:
+const express = require('express');
+const connectDB = require('./config/db');
+const authRoutes = require('./routes/auth');
+const productRoutes = require('./routes/product');
+require('dotenv').config();
+const app = express();
+// Connect to MongoDB
+connectDB();
+// Middleware
+app.use(express.json());
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api', productRoutes);
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+Step 5: Testing the Endpoints
+1. Add Product
+Endpoint: POST http://localhost:5000/api/addproduct
+Request Body
+{
+ "name": "Coffee Mug",
+ "description": "A high-quality ceramic coffee mug",
+ "price": 15.99,
+ "category": "Kitchenware"
+}
+{
+ "name": "Coffee Mug",
+ "description": "A high-quality ceramic coffee mug",
+ "price": 15.99,
+ "category": "Kitchenware"
+}
+Expected Response
+{
+ "message": "Product added successfully",
+ "productId": "product_id_here"
+}
+Update Product
+• Endpoint: PUT http://localhost:5000/api/updateproduct/:productId
+Request Body (only fields to update):
+{
+ "price": 17.99
+}
+Expected Response
+{
+ "message": "Product updated successfully"
+}
+Delete Product
+• Endpoint: DELETE http://localhost:5000/api/deleteproduct/:productId
+Expected Response:
+{
+ "message": "Product deleted successfully"
+}
+Get All Products
+• Endpoint: GET http://localhost:5000/api/products
+Expected Response (example with multiple products)
+[
+ {
+ "_id": "product_id_here",
+ "name": "Coffee Mug",
+ "description": "A high-quality ceramic coffee mug",
+ "price": 15.99,
+ "category": "Kitchenware"
+ },
+ {
+ "_id": "another_product_id",
+ "name": "Tea Cup",
+ "description": "Elegant tea cup for morning tea",
+ "price": 9.99,
+ "category": "Kitchenware"
+ }
+]
+Cart Management
+Step 1: Create the Cart Model
+In models/Cart.js, define the cart schema:
+const mongoose = require('mongoose');
+const cartItemSchema = new mongoose.Schema({
+ productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+ quantity: { type: Number, required: true, min: 1 }
+});
+const cartSchema = new mongoose.Schema({
+ userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+ items: [cartItemSchema]
+});
+module.exports = mongoose.model('Cart', cartSchema);
+Step 2: Create the Cart Controller
+In controllers/cartController.js, implement the logic for each cart endpoint.
+const Cart = require('../models/Cart');
+const Product = require('../models/Product');
+// Add Product to Cart
+const addToCart = async (req, res) => {
+ try {
+ const { userId, productId, quantity } = req.body;
+ // Validate quantity
+ if (!quantity || quantity <= 0) {
+ return res.status(400).json({ message: 'Quantity must be a positive integer.' });
+ }
+ // Check if product exists
+ const product = await Product.findById(productId);
+ if (!product) {
+ return res.status(404).json({ message: 'Product not found.' });
+ }
+ // Find or create cart for the user
+ let cart = await Cart.findOne({ userId });
+ if (!cart) {
+ cart = new Cart({ userId, items: [] });
+ }
+ // Check if the product is already in the cart
+ const existingItem = cart.items.find(item => item.productId.equals(productId));
+ if (existingItem) {
+ // Update quantity
+ existingItem.quantity += quantity;
+ } else {
+ // Add new item
+ cart.items.push({ productId, quantity });
+ }
+ await cart.save();
+ res.status(200).json({ message: 'Product added to cart', cart });
+ } catch (error) {
+ console.error(error);
+ res.status(500).json({ message: 'Server error' });
+ }
+};
+// Update Cart Item Quantity
+const updateCartItem = async (req, res) => {
+ try {
+ const { userId, productId, quantity } = req.body;
+ // Validate quantity
+ if (quantity < 0) {
+ return res.status(400).json({ message: 'Quantity must be zero or a positive integer.' });
+ }
+ // Find the user's cart
+ const cart = await Cart.findOne({ userId });
+ if (!cart) {
+ return res.status(404).json({ message: 'Cart not found.' });
+ }
+ // Find the item in the cart
+ const item = cart.items.find(item => item.productId.equals(productId));
+ if (!item) {
+ return res.status(404).json({ message: 'Product not found in cart.' });
+ }
+ // Update or remove the item based on quantity
+ if (quantity === 0) {
+ cart.items = cart.items.filter(item => !item.productId.equals(productId));
+ } else {
+ item.quantity = quantity;
+ }
+ await cart.save();
+ res.status(200).json({ message: 'Cart updated successfully', cart });
+ } catch (error) {
+ console.error(error);
+ res.status(500).json({ message: 'Server error' });
+ }
+};
+// Delete Product from Cart
+const deleteCartItem = async (req, res) => {
+ try {
+ const { userId, productId } = req.body;
+ // Find the user's cart
+ const cart = await Cart.findOne({ userId });
+ if (!cart) {
+ return res.status(404).json({ message: 'Cart not found.' });
+ }
+ // Remove the item from the cart
+ cart.items = cart.items.filter(item => !item.productId.equals(productId));
+ await cart.save();
+ res.status(200).json({ message: 'Product removed from cart', cart });
+ } catch (error) {
+ console.error(error);
+ res.status(500).json({ message: 'Server error' });
+ }
+};
+// Get Cart Details
+const getCart = async (req, res) => {
+ try {
+ const { userId } = req.params;
+ // Find the user's cart
+ const cart = await Cart.findOne({ userId }).populate('items.productId');
+ if (!cart || cart.items.length === 0) {
+ return res.status(200).json({ message: 'Cart is empty.' });
+ }
+ // Calculate total amount
+ const cartDetails = cart.items.map(item => ({
+ productId: item.productId._id,
+ name: item.productId.name,
+ description: item.productId.description,
+ price: item.productId.price,
+ quantity: item.quantity,
+ totalPrice: item.productId.price * item.quantity
+ }));
+ const totalAmount = cartDetails.reduce((acc, item) => acc + item.totalPrice, 0);
+ res.status(200).json({ cartDetails, totalAmount });
+ } catch (error) {
+ console.error(error);
+ res.status(500).json({ message: 'Server error' });
+ }
+};
+module.exports = { addToCart, updateCartItem, deleteCartItem, getCart };
+Step 3: Define Cart Routes
+In routes/cart.js, create the routes for each cart operation.
+const express = require('express');
+const router = express.Router();
+const { addToCart, updateCartItem, deleteCartItem, getCart } = 
+require('../controllers/cartController');
+router.post('/cart/add', addToCart); // Add product to cart
+router.put('/cart/update', updateCartItem); // Update cart item quantity
+router.delete('/cart/delete', deleteCartItem); // Delete product from cart
+router.get('/cart/:userId', getCart); // Get cart details
+module.exports = router;
+Step 4: Integrate Cart Routes in app.js
+In your main file app.js, include the cart routes:
+const express = require('express');
+const connectDB = require('./config/db');
+const authRoutes = require('./routes/auth');
+const productRoutes = require('./routes/product');
+const cartRoutes = require('./routes/cart');
+require('dotenv').config();
+const app = express();
+// Connect to MongoDB
+connectDB();
+// Middleware
+app.use(express.json());
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api', productRoutes);
+app.use('/api', cartRoutes);
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+Step 5: Testing the Endpoints
+1. Add Product to Cart
+o Endpoint: POST http://localhost:5000/api/cart/add
+o Request Body
+{
+ "userId": "user_id_here",
+ "productId": "product_id_here",
+ "quantity": 2
+}
+Update Cart Item Quantity
+• Endpoint: PUT http://localhost:5000/api/cart/update
+• Request Body:
+{
+ "userId": "user_id_here",
+ "productId": "product_id_here",
+ "quantity": 3
+}
+Delete Product from Cart
+• Endpoint: DELETE http://localhost:5000/api/cart/delete
+• Request Body:
+{
+ "userId": "user_id_here",
+ "productId": "product_id_here"
+}
+Get Cart Details
+• Endpoint: GET http://localhost:5000/api/cart/:userId
+Expected Response:
+{
+ "cartDetails": [
+ {
+ "productId": "product_id_here",
+ "name": "Product Name",
+ "description": "Product Description",
+ "price": 100,
+ "quantity": 2,
+ "totalPrice": 200
+ }
+ ],
+ "totalAmount": 200
+}
+Order Management
+Step 1: Create the Order Model
+In models/Order.js, define a schema for order data.
+const mongoose = require('mongoose');
+const orderItemSchema = new mongoose.Schema({
+ productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+ quantity: { type: Number, required: true },
+ price: { type: Number, required: true }
+});
+const orderSchema = new mongoose.Schema({
+ userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+ items: [orderItemSchema],
+ totalAmount: { type: Number, required: true },
+ shippingDetails: {
+ address: { type: String, required: true },
+ city: { type: String, required: true },
+ postalCode: { type: String, required: true },
+ country: { type: String, required: true }
+ },
+ status: { type: String, default: 'Pending' },
+ orderDate: { type: Date, default: Date.now },
+ orderId: { type: String, required: true, unique: true }
+});
+module.exports = mongoose.model('Order', orderSchema);
+Step 2: Create the Order Controller
+In controllers/orderController.js, define functions for placing an order, retrieving all orders, and 
+retrieving orders by customer ID.
+const Cart = require('../models/Cart');
+const Order = require('../models/Order');
+const User = require('../models/User');
+const Product = require('../models/Product');
+// Generate a unique order ID
+const generateOrderId = () => {
+ return 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+};
+// Place Order
+const placeOrder = async (req, res) => {
+ try {
+ const { userId, shippingDetails } = req.body;
+ // Validate cart and user existence
+ const cart = await Cart.findOne({ userId }).populate('items.productId');
+ if (!cart || cart.items.length === 0) {
+ return res.status(400).json({ message: 'Cart is empty or does not exist.' });
+ }
+ // Calculate total amount
+ const totalAmount = cart.items.reduce((total, item) => total + item.productId.price * item.quantity, 
+0);
+ // Create order
+ const newOrder = new Order({
+ userId,
+ items: cart.items.map(item => ({
+ productId: item.productId._id,
+ quantity: item.quantity,
+ price: item.productId.price
+ })),
+ totalAmount,
+ shippingDetails,
+ orderId: generateOrderId(),
+ });
+ await newOrder.save();
+ // Clear cart after order is placed
+ cart.items = [];
+ await cart.save();
+ res.status(201).json({ message: 'Order placed successfully', orderId: newOrder.orderId });
+ } catch (error) {
+ console.error(error);
+ res.status(500).json({ message: 'Server error' });
+ }
+};
+// Get All Orders (with optional pagination)
+const getAllOrders = async (req, res) => {
+ try {
+ const { page = 1, limit = 10 } = req.query;
+ const orders = await Order.find()
+ .populate('userId', 'name email')
+ .populate('items.productId', 'name price description')
+ .skip((page - 1) * limit)
+ .limit(parseInt(limit));
+ res.status(200).json(orders);
+ } catch (error) {
+ console.error(error);
+ res.status(500).json({ message: 'Server error' });
+ }
+};
+// Get Orders by Customer ID (with optional pagination)
+const getOrdersByCustomerId = async (req, res) => {
+ try {
+ const { customerId } = req.params;
+ const { page = 1, limit = 10 } = req.query;
+ const orders = await Order.find({ userId: customerId })
+ .populate('items.productId', 'name price description')
+ .skip((page - 1) * limit)
+ .limit(parseInt(limit));
+ if (orders.length === 0) {
+ return res.status(404).json({ message: 'No orders found for this customer.' });
+ }
+ res.status(200).json(orders);
+ } catch (error) {
+ console.error(error);
+ res.status(500).json({ message: 'Server error' });
+ }
+};
+module.exports = { placeOrder, getAllOrders, getOrdersByCustomerId };
+Step 3: Define Order Routes
+In routes/order.js, define the routes for each order operation.
+const express = require('express');
+const router = express.Router();
+const { placeOrder, getAllOrders, getOrdersByCustomerId } = require('../controllers/orderController');
+router.post('/placeorder', placeOrder); // Place an order
+router.get('/getallorders', getAllOrders); // Get all orders (for admin)
+router.get('/orders/customer/:customerId', getOrdersByCustomerId); // Get orders by customer ID
+module.exports = router;
+Step 4: Integrate Order Routes in app.js
+In your main file app.js, add the order routes:
+const express = require('express');
+const connectDB = require('./config/db');
+const authRoutes = require('./routes/auth');
+const productRoutes = require('./routes/product');
+const cartRoutes = require('./routes/cart');
+const orderRoutes = require('./routes/order');
+require('dotenv').config();
+const app = express();
+// Connect to MongoDB
+connectDB();
+// Middleware
+app.use(express.json());
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api', productRoutes);
+app.use('/api', cartRoutes);
+app.use('/api', orderRoutes);
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+Step 5: Testing the Endpoints
+1. Place Order
+o Endpoint: POST http://localhost:5000/api/placeorder
+o Request Body:
+{
+ "userId": "user_id_here",
+ "shippingDetails": {
+ "address": "123 Main St",
+ "city": "Cityville",
+ "postalCode": "12345",
+ "country": "Countryland"
+ }
+}
+Expected Response
+{
+ "message": "Order placed successfully",
+ "orderId": "ORD-123456ABC"
+}
+Get All Orders (Admin)
+• Endpoint: GET http://localhost:5000/api/getallorders?page=1&limit=10
+[
+ {
+ "_id": "order_id_here",
+ "userId": { "name": "John Doe", "email": "johndoe@example.com" },
+ "items": [
+ {
+ "productId": { "name": "Product Name", "price": 100, "description": "Product 
+description" },
+ "quantity": 2,
+ "price": 100
+ }
+ ],
+ "totalAmount": 200,
+ "shippingDetails": { "address": "123 Main St", "city": "Cityville", "postalCode": "12345", 
+"country": "Countryland" },
+ "status": "Pending",
+ "orderDate": "2023-04-21T10:00:00Z",
+ "orderId": "ORD-123456ABC"
+ }
+]
+Get Orders by Customer ID
+• Endpoint: GET http://localhost:5000/api/orders/customer/:customerId?page=1&limit=10
+[
+ {
+ "_id": "order_id_here",
+ "items": [
+ {
+ "productId": { "name": "Product Name", "price": 100, "description": "Product 
+description" },
+ "quantity": 2,
+ "price": 100
+ }
+ ],
+ "totalAmount": 200,
+ "shippingDetails": { "address": "123 Main St", "city": "Cityville", "postalCode": "12345", 
+"country": "Countryland" },
+ "status": "Pending",
+ "orderDate": "2023-04-21T10:00:00Z",
+ "orderId": "ORD-123456ABC"
+ }
+]
+Step 6: Documentation
+Use Postman or a similar tool to document each endpoint. Each endpoint’s documentation 
+should include:
+• URL
+• HTTP method
+• Headers (if any)
+• Sample request body (for POST endpoints)
+• Sample responses
